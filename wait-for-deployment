@@ -1,10 +1,11 @@
 #!/bin/bash
 # Waits for a deployment to complete.
 #
-# Includes a two-step approach:
+# Includes a three-steps approach:
 #
 # 1. Wait for the observed generation to match the specified one.
-# 2. Waits for the number of available replicas to match the specified one.
+# 2. Wait for the expected number of available replicas to match the specified one.
+# 3. Wait for the expected number of available pods to be in 'Ready' state
 #
 # Spawn from my answer to this StackOverflow question: http://stackoverflow.com/questions/37448357/ensure-kubernetes-deployment-has-completed-and-all-pods-are-updated-and-availabl
 #
@@ -36,28 +37,48 @@ get_deployment_jsonpath() {
   kubectl get deployment "${deployment}" -o "jsonpath=${_jsonpath}"
 }
 
+get_statuses_for_deployment() {
+  kubectl get pods --selector=app=${deployment} -o 'jsonpath={.items[*].status.conditions[*].type}'
+}
+
+count_ready_pods() {
+  get_statuses_for_deployment | tr ' ' '\n' | grep Ready | wc -l
+}
+
 if [[ $# != 1 ]]; then
-  echo "usage: $(basename $0) <deployment>" >&2
+  echo "Usage: $(basename $0) <deployment>" >&2
   exit 1
 fi
 
 readonly deployment="$1"
 
 readonly generation=$(get_generation)
-echo "waiting for specified generation ${generation} to be observed"
-while [[ $(get_observed_generation) -lt ${generation} ]]; do
+echo "Waiting for specified generation: ${generation} for deployment ${deployment} to be observed"
+
+current_generation=$(get_observed_generation)
+while [[ ${current_generation} -lt ${generation} ]]; do
   sleep .5
+  echo "Current generation: ${current_generation}, expected generation: ${generation}, waiting"
+  current_generation=$(get_observed_generation)
 done
-echo "specified generation observed."
+echo "Observed expected generation: ${generation}"
 
 readonly replicas="$(get_replicas)"
-echo "specified replicas: ${replicas}"
+echo "Expected replicas: ${replicas}"
 
-available=-1
+available=$(get_available_replicas)
 while [[ ${available} -ne ${replicas} ]]; do
   sleep .5
+  echo "Available replicas: ${available}, waiting"
   available=$(get_available_replicas)
-  echo "available replicas: ${available}"
+done
+echo "Observed expected number of availabe replicas: ${available}"
+
+ready_pods=$(count_ready_pods)
+while [[ ${ready_pods} -ne ${replicas} ]]; do
+  sleep .5
+  echo "Ready pods: ${ready_pods}, expected pods to be ready: ${replicas}, waiting"
+  ready_pods=$(count_ready_pods)
 done
 
-echo "deployment complete."
+echo "Deployment of service ${deployment} successful. All ${ready_pods} ready"
