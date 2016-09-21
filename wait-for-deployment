@@ -10,9 +10,14 @@
 #
 set -o errexit
 set -o pipefail
-set -o nounset
 
-deployment=
+DEFAULT_TIMEOUT=60
+
+monitor_timeout() {
+  sleep ${timeout}
+  echo "Timeout ${timeout} exceeded" >&2
+  kill $1
+}
 
 get_generation() {
   get_deployment_jsonpath '{.metadata.generation}'
@@ -36,10 +41,21 @@ get_deployment_jsonpath() {
   kubectl get deployment "${deployment}" -o "jsonpath=${jsonpath}"
 }
 
-if [[ $# != 1 ]]; then
-  echo "usage: $(basename "$0") <deployment>" >&2
+if [[ $# -lt 1 ]]; then
+  echo "usage: $(basename $0) <deployment> [timeout]" >&2
   exit 1
 fi
+
+if [[ $2 -gt 0 ]]; then
+  export timeout=$2
+else 
+  export timeout=$DEFAULT_TIMEOUT
+fi
+
+echo "Waiting for deployment with timeout: ${timeout} seconds"
+
+monitor_timeout $$ &
+readonly timeout_monitor_pid=$!
 
 readonly deployment="$1"
 
@@ -60,4 +76,5 @@ while [[ ${available} -ne ${replicas} ]]; do
   echo "available replicas: ${available}"
 done
 
+kill ${timeout_monitor_pid} #Stop timeout monitor
 echo "deployment complete."
