@@ -67,7 +67,7 @@ readonly replicas="$(get_replicas)"
 echo "Expected replicas: ${replicas}"
 
 available=$(get_available_replicas)
-while [[ ${available} -ne ${replicas} ]]; do
+while [[ ${available} -lt ${replicas} ]]; do
   sleep .5
   echo "Available replicas: ${available}, waiting"
   available=$(get_available_replicas)
@@ -75,7 +75,7 @@ done
 echo "Observed expected number of availabe replicas: ${available}"
 
 ready_pods=$(count_ready_pods)
-while [[ ${ready_pods} -ne ${replicas} ]]; do
+while [[ ${ready_pods} -lt ${replicas} ]]; do
   sleep .5
   echo "Ready pods: ${ready_pods}, expected pods to be ready: ${replicas}, waiting"
   ready_pods=$(count_ready_pods)
