@@ -1,0 +1,14 @@
+language: bash
+
+# Use container-based environment for speedy builds.
+sudo: false
+
+addons:
+  apt:
+    sources:
+    - debian-sid
+    packages:
+    - shellcheck
+
+script:
+ - shellcheck wait-for-deployment
