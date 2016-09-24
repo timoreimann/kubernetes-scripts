@@ -37,7 +37,7 @@ get_deployment_jsonpath() {
 }
 
 if [[ $# != 1 ]]; then
-  echo "usage: $(basename $0) <deployment>" >&2
+  echo "usage: $(basename "$0") <deployment>" >&2
   exit 1
 fi
 
