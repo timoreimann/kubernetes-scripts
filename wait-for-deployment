@@ -31,9 +31,9 @@ get_available_replicas() {
 }
 
 get_deployment_jsonpath() {
-  local -r _jsonpath="$1"
+  local -r jsonpath="$1"
 
-  kubectl get deployment "${deployment}" -o "jsonpath=${_jsonpath}"
+  kubectl get deployment "${deployment}" -o "jsonpath=${jsonpath}"
 }
 
 if [[ $# != 1 ]]; then
