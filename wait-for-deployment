@@ -10,13 +10,15 @@
 #
 set -o errexit
 set -o pipefail
+set -o nounset
 
 DEFAULT_TIMEOUT=60
 
 monitor_timeout() {
+  local -r wait_pid="$1"
   sleep ${timeout}
   echo "Timeout ${timeout} exceeded" >&2
-  kill $1
+  kill ${wait_pid}
 }
 
 get_generation() {
@@ -41,25 +43,34 @@ get_deployment_jsonpath() {
   kubectl get deployment "${deployment}" -o "jsonpath=${jsonpath}"
 }
 
-if [[ $# -lt 1 ]]; then
-  echo "usage: $(basename $0) <deployment> [timeout]" >&2
+display_usage_and_exit() {
+  echo "usage: $(basename $0) <deployment> <[timeout]>" >&2
+  echo "Arguments:" >&2
+  echo "deployment - REQUIRED: The name of the deployment the script should wait on" >&2
+  echo "timeout    - OPTIONAL: How long to wait for the deployment to be available, defaults to ${DEFAULT_TIMEOUT} seconds, must be greater than 0" >&2
   exit 1
+}
+
+if [ $# -lt 1 ] || [ $# -gt 2 ] ; then
+  display_usage_and_exit
 fi
 
-if [[ $2 -gt 0 ]]; then
-  export timeout=$2
-else 
-  export timeout=$DEFAULT_TIMEOUT
+readonly deployment="$1"
+
+declare -xr timeout=${2:-$DEFAULT_TIMEOUT}
+if [[ ${timeout} -le 0 ]]; then
+  display_usage_and_exit
 fi
 
-echo "Waiting for deployment with timeout: ${timeout} seconds"
+echo "Waiting for deployment with timeout ${timeout} seconds"
 
 monitor_timeout $$ &
 readonly timeout_monitor_pid=$!
 
-readonly deployment="$1"
+trap "kill ${timeout_monitor_pid}" EXIT #Stop timeout monitor
 
 generation=$(get_generation); readonly generation
+
 echo "waiting for specified generation ${generation} to be observed"
 while [[ $(get_observed_generation) -lt ${generation} ]]; do
   sleep .5
@@ -76,5 +87,4 @@ while [[ ${available} -ne ${replicas} ]]; do
   echo "available replicas: ${available}"
 done
 
-kill ${timeout_monitor_pid} #Stop timeout monitor
 echo "deployment complete."
