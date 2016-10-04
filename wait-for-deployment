@@ -44,7 +44,7 @@ get_deployment_jsonpath() {
 }
 
 display_usage_and_exit() {
-  echo "usage: $(basename $0) <deployment> <[timeout]>" >&2
+  echo "Usage: $(basename $0) <deployment> <[timeout]>" >&2
   echo "Arguments:" >&2
   echo "deployment - REQUIRED: The name of the deployment the script should wait on" >&2
   echo "timeout    - OPTIONAL: How long to wait for the deployment to be available, defaults to ${DEFAULT_TIMEOUT} seconds, must be greater than 0" >&2
@@ -69,22 +69,24 @@ readonly timeout_monitor_pid=$!
 
 trap "kill ${timeout_monitor_pid}" EXIT #Stop timeout monitor
 
-generation=$(get_generation); readonly generation
+generation=$(get_generation);  readonly generation
+current_generation=$(get_observed_generation)
 
-echo "waiting for specified generation ${generation} to be observed"
-while [[ $(get_observed_generation) -lt ${generation} ]]; do
+echo "Expected generation for deployment ${deployment}: ${generation}"
+while [[ ${current_generation} -lt ${generation} ]]; do
   sleep .5
+  echo "Currently observed generation: ${current_generation}"
 done
-echo "specified generation observed."
+echo "Observed expected generation: ${current_generation}"
 
 replicas="$(get_replicas)"; readonly replicas
-echo "specified replicas: ${replicas}"
+echo "Expected replicas: ${replicas}"
 
-available=-1
-while [[ ${available} -ne ${replicas} ]]; do
+available=$(get_available_replicas)
+while [[ ${available} -lt ${replicas} ]]; do
   sleep .5
+  echo "Available replicas: ${available}, waiting"
   available=$(get_available_replicas)
-  echo "available replicas: ${available}"
 done
 
-echo "deployment complete."
+echo "Deployment of service ${deployment} successful. All ${available} replicas ready"
