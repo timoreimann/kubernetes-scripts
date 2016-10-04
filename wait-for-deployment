@@ -16,9 +16,9 @@ DEFAULT_TIMEOUT=60
 
 monitor_timeout() {
   local -r wait_pid="$1"
-  sleep ${timeout}
+  sleep "${timeout}"
   echo "Timeout ${timeout} exceeded" >&2
-  kill ${wait_pid}
+  kill "${wait_pid}"
 }
 
 get_generation() {
@@ -44,7 +44,7 @@ get_deployment_jsonpath() {
 }
 
 display_usage_and_exit() {
-  echo "Usage: $(basename $0) <deployment> <[timeout]>" >&2
+  echo "Usage: $(basename "$0") <deployment> <[timeout]>" >&2
   echo "Arguments:" >&2
   echo "deployment - REQUIRED: The name of the deployment the script should wait on" >&2
   echo "timeout    - OPTIONAL: How long to wait for the deployment to be available, defaults to ${DEFAULT_TIMEOUT} seconds, must be greater than 0" >&2
@@ -67,7 +67,7 @@ echo "Waiting for deployment with timeout ${timeout} seconds"
 monitor_timeout $$ &
 readonly timeout_monitor_pid=$!
 
-trap "kill ${timeout_monitor_pid}" EXIT #Stop timeout monitor
+trap 'kill ${timeout_monitor_pid}' EXIT #Stop timeout monitor
 
 generation=$(get_generation);  readonly generation
 current_generation=$(get_observed_generation)
