@@ -76,6 +76,7 @@ echo "Expected generation for deployment ${deployment}: ${generation}"
 while [[ ${current_generation} -lt ${generation} ]]; do
   sleep .5
   echo "Currently observed generation: ${current_generation}"
+  current_generation=$(get_observed_generation)
 done
 echo "Observed expected generation: ${current_generation}"
 
