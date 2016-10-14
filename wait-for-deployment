@@ -11,6 +11,7 @@
 set -o errexit
 set -o pipefail
 set -o nounset
+set -m
 
 DEFAULT_TIMEOUT=60
 
@@ -67,7 +68,7 @@ echo "Waiting for deployment with timeout ${timeout} seconds"
 monitor_timeout $$ &
 readonly timeout_monitor_pid=$!
 
-trap 'kill -- -$$' EXIT #Stop timeout monitor
+trap 'kill -- -${timeout_monitor_pid}' EXIT #Stop timeout monitor
 
 generation=$(get_generation);  readonly generation
 current_generation=$(get_observed_generation)
