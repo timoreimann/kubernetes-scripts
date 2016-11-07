@@ -11,6 +11,9 @@
 set -o errexit
 set -o pipefail
 set -o nounset
+# -m enables job control which is otherwise only enabled in interactive mode
+# http://unix.stackexchange.com/a/196606/73578
+set -m
 
 DEFAULT_TIMEOUT=60
 
@@ -67,7 +70,7 @@ echo "Waiting for deployment with timeout ${timeout} seconds"
 monitor_timeout $$ &
 readonly timeout_monitor_pid=$!
 
-trap 'kill ${timeout_monitor_pid}' EXIT #Stop timeout monitor
+trap 'kill -- -${timeout_monitor_pid}' EXIT #Stop timeout monitor
 
 generation=$(get_generation);  readonly generation
 current_generation=$(get_observed_generation)
