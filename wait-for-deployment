@@ -11,6 +11,8 @@
 set -o errexit
 set -o pipefail
 set -o nounset
+# -m enables job control which is otherwise only enabled in interactive mode
+# http://unix.stackexchange.com/a/196606/73578
 set -m
 
 DEFAULT_TIMEOUT=60
