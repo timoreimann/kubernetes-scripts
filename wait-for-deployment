@@ -124,7 +124,7 @@ echo ""
 readonly expected_image=$(get_deployment_image)
 echo "Expected deployment image(s) ${expected_image}"
 echo "-------------------------------------------------"
-ready_pods=$(echo "$(get_pods_image)" | grep Ready=True | grep -c "${expected_image}")
+ready_pods=$(get_pods_image | grep Ready=True | grep -c "${expected_image}")
 pod_status_stats
 
 echo "Ready pods: ${ready_pods}, expected pods to be ready: ${replicas} ..."
@@ -133,7 +133,7 @@ while [[ ${ready_pods} -lt ${replicas} ]]; do
   sleep .5
 
   echo "Ready pods: ${ready_pods}, expected pods to be ready: ${replicas}, waiting"
-  ready_pods=$(echo "$(get_pods_image)" | grep Ready=True | grep -c "${expected_image}")
+  ready_pods=$(get_pods_image | grep Ready=True | grep -c "${expected_image}")
   pod_status_stats
 
 done
