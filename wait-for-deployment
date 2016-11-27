@@ -45,11 +45,11 @@ get_deployment_image() {
 }
 
 get_pods_image() {
-  kubectl get pods  --selector=app=${deployment} -o jsonpath='{range .items[*]}__NEWLINE__{.spec.containers[*].image}__TAB__{range @.status.conditions[*]}{@.type}={@.status};{end}{end}' | sed "s/__NEWLINE__/\n/g" | sed "s/__TAB__/\\t/g"
+  kubectl get pods  --selector=app="${deployment}" -o jsonpath='{range .items[*]}__NEWLINE__{.spec.containers[*].image}__TAB__{range @.status.conditions[*]}{@.type}={@.status};{end}{end}' | sed "s/__NEWLINE__/\n/g" | sed "s/__TAB__/\\t/g"
 }
 
 get_statuses_for_deployment() {
-   kubectl get pods --selector=app=${deployment} -o 'jsonpath={.items[*].status.conditions[*].type}'
+   kubectl get pods --selector=app="${deployment}" -o 'jsonpath={.items[*].status.conditions[*].type}'
 }
 
 get_deployment_jsonpath() {
@@ -61,9 +61,9 @@ get_deployment_jsonpath() {
 pod_status_stats() {
     cur_running_pods=$(get_pods_image)
     echo "Running pods : $cur_running_pods"
-    echo "    $(echo "$cur_running_pods" | grep Ready=True |wc -l) Ready"
-    echo "    $(echo "$cur_running_pods" | grep "${expected_image}" |wc -l) with ${expected_image}"
-    echo "    $(echo "$cur_running_pods" | grep Ready=True | grep "${expected_image}" | wc -l) with Ready with expected image"
+    echo "    $(echo "$cur_running_pods" | grep -c Ready=True) Ready"
+    echo "    $(echo "$cur_running_pods" | grep -c "${expected_image}") with ${expected_image}"
+    echo "    $(echo "$cur_running_pods" | grep Ready=True | grep -c "${expected_image}") with Ready with expected image"
 
 }
 
@@ -124,7 +124,7 @@ echo ""
 readonly expected_image=$(get_deployment_image)
 echo "Expected deployment image(s) ${expected_image}"
 echo "-------------------------------------------------"
-ready_pods=$(echo "$(get_pods_image)" | grep Ready=True | grep "${expected_image}" | wc -l)
+ready_pods=$(echo "$(get_pods_image)" | grep Ready=True | grep -c "${expected_image}")
 pod_status_stats
 
 echo "Ready pods: ${ready_pods}, expected pods to be ready: ${replicas} ..."
@@ -133,7 +133,7 @@ while [[ ${ready_pods} -lt ${replicas} ]]; do
   sleep .5
 
   echo "Ready pods: ${ready_pods}, expected pods to be ready: ${replicas}, waiting"
-  ready_pods=$(echo "$(get_pods_image)" | grep Ready=True | grep "${expected_image}" | wc -l)
+  ready_pods=$(echo "$(get_pods_image)" | grep Ready=True | grep -c "${expected_image}")
   pod_status_stats
 
 done
