@@ -8,7 +8,7 @@
 #
 # Spawn from my answer to this StackOverflow question: http://stackoverflow.com/questions/37448357/ensure-kubernetes-deployment-has-completed-and-all-pods-are-updated-and-availabl
 #
-set -o errexit
+# set -o errexit # When grep pattern is not found setting this will cause the script to exit
 set -o pipefail
 set -o nounset
 # -m enables job control which is otherwise only enabled in interactive mode
@@ -40,10 +40,31 @@ get_available_replicas() {
   get_deployment_jsonpath '{.status.availableReplicas}'
 }
 
+get_deployment_image() {
+  get_deployment_jsonpath '{.spec.template.spec.containers[*].image}'
+}
+
+get_pods_image() {
+  kubectl get pods  --selector=app="${deployment}" -o jsonpath='{range .items[*]}__NEWLINE__{.spec.containers[*].image}__TAB__{range @.status.conditions[*]}{@.type}={@.status};{end}{end}' | sed "s/__NEWLINE__/\n/g" | sed "s/__TAB__/\\t/g"
+}
+
+get_statuses_for_deployment() {
+   kubectl get pods --selector=app="${deployment}" -o 'jsonpath={.items[*].status.conditions[*].type}'
+}
+
 get_deployment_jsonpath() {
   local -r jsonpath="$1"
 
   kubectl get deployment "${deployment}" -o "jsonpath=${jsonpath}"
+}
+
+pod_status_stats() {
+    cur_running_pods=$(get_pods_image)
+    echo "Running pods : $cur_running_pods"
+    echo "    $(echo "$cur_running_pods" | grep -c Ready=True) Ready"
+    echo "    $(echo "$cur_running_pods" | grep -c "${expected_image}") with ${expected_image}"
+    echo "    $(echo "$cur_running_pods" | grep Ready=True | grep -c "${expected_image}") with Ready with expected image"
+
 }
 
 display_usage_and_exit() {
@@ -75,7 +96,9 @@ trap 'kill -- -${timeout_monitor_pid}' EXIT #Stop timeout monitor
 generation=$(get_generation);  readonly generation
 current_generation=$(get_observed_generation)
 
+echo ""
 echo "Expected generation for deployment ${deployment}: ${generation}"
+echo "-------------------------------------------------"
 while [[ ${current_generation} -lt ${generation} ]]; do
   sleep .5
   echo "Currently observed generation: ${current_generation}"
@@ -83,14 +106,36 @@ while [[ ${current_generation} -lt ${generation} ]]; do
 done
 echo "Observed expected generation: ${current_generation}"
 
+echo ""
+
 replicas="$(get_replicas)"; readonly replicas
 echo "Expected replicas: ${replicas}"
+echo "-------------------------------------------------"
 
 available=$(get_available_replicas)
 while [[ ${available} -lt ${replicas} ]]; do
   sleep .5
   echo "Available replicas: ${available}, waiting"
   available=$(get_available_replicas)
+done
+
+echo ""
+
+readonly expected_image=$(get_deployment_image)
+echo "Expected deployment image(s) ${expected_image}"
+echo "-------------------------------------------------"
+ready_pods=$(get_pods_image | grep Ready=True | grep -c "${expected_image}")
+pod_status_stats
+
+echo "Ready pods: ${ready_pods}, expected pods to be ready: ${replicas} ..."
+
+while [[ ${ready_pods} -lt ${replicas} ]]; do
+  sleep .5
+
+  echo "Ready pods: ${ready_pods}, expected pods to be ready: ${replicas}, waiting"
+  ready_pods=$(get_pods_image | grep Ready=True | grep -c "${expected_image}")
+  pod_status_stats
+
 done
 
 echo "Deployment of service ${deployment} successful. All ${available} replicas ready"
