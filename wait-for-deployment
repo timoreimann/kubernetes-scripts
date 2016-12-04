@@ -32,8 +32,16 @@ get_observed_generation() {
   get_deployment_jsonpath '{.status.observedGeneration}'
 }
 
-get_replicas() {
+get_specified_replicas() {
   get_deployment_jsonpath '{.spec.replicas}'
+}
+
+get_replicas() {
+  get_deployment_jsonpath '{.status.replicas}'
+}
+
+get_updated_replicas() {
+  get_deployment_jsonpath '{.status.updatedReplicas}'
 }
 
 get_available_replicas() {
@@ -83,14 +91,19 @@ while [[ ${current_generation} -lt ${generation} ]]; do
 done
 echo "Observed expected generation: ${current_generation}"
 
-replicas="$(get_replicas)"; readonly replicas
-echo "Expected replicas: ${replicas}"
+specified_replicas="$(get_specified_replicas)"; readonly specified_replicas
+echo "Specified replicas: ${specified_replicas}"
 
-available=$(get_available_replicas)
-while [[ ${available} -lt ${replicas} ]]; do
+current_replicas=$(get_replicas)
+updated_replicas=$(get_updated_replicas)
+available_replicas=$(get_available_replicas)
+
+while [[ ${updated_replicas} -lt ${specified_replicas} || ${current_replicas} -gt ${updated_replicas} || ${available_replicas} -lt ${updated_replicas} ]]; do
   sleep .5
-  echo "Available replicas: ${available}, waiting"
-  available=$(get_available_replicas)
+  echo "current/updated/available replicas: ${current_replicas}/${updated_replicas}/${available_replicas}, waiting"
+  current_replicas=$(get_replicas)
+  updated_replicas=$(get_updated_replicas)
+  available_replicas=$(get_available_replicas)
 done
 
-echo "Deployment of service ${deployment} successful. All ${available} replicas ready"
+echo "Deployment ${deployment} successful. All ${available_replicas} replicas are ready."
