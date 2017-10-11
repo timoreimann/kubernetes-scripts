@@ -16,6 +16,7 @@ set -o nounset
 set -m
 
 DEFAULT_TIMEOUT=60
+DEFAULT_NAMESPACE=default
 
 monitor_timeout() {
   local -r wait_pid="$1"
@@ -51,27 +52,40 @@ get_available_replicas() {
 get_deployment_jsonpath() {
   local -r jsonpath="$1"
 
-  kubectl get deployment "${deployment}" -o "jsonpath=${jsonpath}"
+  kubectl --namespace ${k8sNamespace} get deployment "${deployment}" -o "jsonpath=${jsonpath}"
 }
 
 display_usage_and_exit() {
   echo "Usage: $(basename "$0") <deployment> <[timeout]>" >&2
   echo "Arguments:" >&2
-  echo "deployment - REQUIRED: The name of the deployment the script should wait on" >&2
-  echo "timeout    - OPTIONAL: How long to wait for the deployment to be available, defaults to ${DEFAULT_TIMEOUT} seconds, must be greater than 0" >&2
+  echo "-d REQUIRED: The name of the deployment the script should wait on" >&2
+  echo "-n OPTIONAL: The namespace the deployment exists in, defaults is the 'default' namespace" >&2
+  echo "-t OPTIONAL: How long to wait for the deployment to be available, defaults to ${DEFAULT_TIMEOUT} seconds, must be greater than 0" >&2
   exit 1
 }
 
-if [ $# -lt 1 ] || [ $# -gt 2 ] ; then
+deployment=""
+k8sNamespace=${DEFAULT_NAMESPACE}
+timeout=${DEFAULT_TIMEOUT}
+
+while getopts 'd:n:t:' arg
+do
+    case ${arg} in
+        d) deployment=${OPTARG};;
+        n) k8sNamespace=${OPTARG};;
+        t) timeout=${OPTARG};;
+        *) display_usage_and_exit
+    esac
+done
+
+if [[ -z "${deployment// }" ]] ; then
   display_usage_and_exit
 fi
 
-readonly deployment="$1"
-
-declare -xr timeout=${2:-$DEFAULT_TIMEOUT}
 if [[ ${timeout} -le 0 ]]; then
   display_usage_and_exit
 fi
+
 
 echo "Waiting for deployment with timeout ${timeout} seconds"
 
