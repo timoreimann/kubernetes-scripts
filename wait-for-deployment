@@ -77,7 +77,7 @@ do
 done
 
 shift $((OPTIND-1))
--if [ $# -ne 1 ] ; then   
+-if [ "$#" -ne 1 ] ; then   
   display_usage_and_exit
 fi
 readonly deployment="$1"
