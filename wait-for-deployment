@@ -45,20 +45,21 @@ get_updated_replicas() {
   get_deployment_jsonpath '{.status.updatedReplicas}'
 }
 
-get_available_replicas() {
-  get_deployment_jsonpath '{.status.availableReplicas}'
+get_ready_replicas() {
+  get_deployment_jsonpath '{.status.readyReplicas}'
 }
 
 get_deployment_jsonpath() {
   local -r jsonpath="$1"
 
-  kubectl --namespace "${namespace}" get deployment "${deployment}" -o "jsonpath=${jsonpath}"
+  kubectl --namespace "${namespace}" get "${type}" "${deployment}" -o "jsonpath=${jsonpath}"
 }
 
 display_usage_and_exit() {
-  echo "Usage: $(basename "$0") [-n <namespace>] [-t <timeout>] <deployment>" >&2
+  echo "Usage: $(basename "$0") [-n <namespace>] [-t <timeout>] <deployment|statefulset> <resource-name>" >&2
   echo "Arguments:" >&2
-  echo "deployment REQUIRED: The name of the deployment the script should wait on" >&2
+  echo "deployment|statefulset REQUIRED: the type of kubernetes resource to be waited for: deployment or statefulset, other types are not supported" >&2
+  echo "resource-name REQUIRED: The name of the deployment the script should wait on" >&2
   echo "-n OPTIONAL: The namespace the deployment exists in, defaults is the 'default' namespace" >&2
   echo "-t OPTIONAL: How long to wait for the deployment to be available, defaults to ${DEFAULT_TIMEOUT} seconds, must be greater than 0" >&2
   exit 1
@@ -77,16 +78,17 @@ do
 done
 
 shift $((OPTIND-1))
-if [ "$#" -ne 1 ] ; then   
+if [ "$#" -ne 2 ] ; then
   display_usage_and_exit
 fi
-readonly deployment="$1"
+readonly type="$1"
+readonly deployment="$2"
 
 if [[ ${timeout} -le 0 ]]; then
   display_usage_and_exit
 fi
 
-echo "Waiting for deployment of ${deployment} in namespace ${namespace} with a timeout ${timeout} seconds"
+echo "Waiting for ${type} ${deployment} in namespace ${namespace} with a timeout ${timeout} seconds"
 
 monitor_timeout $$ &
 readonly timeout_monitor_pid=$!
@@ -96,7 +98,7 @@ trap 'kill -- -${timeout_monitor_pid}' EXIT #Stop timeout monitor
 generation=$(get_generation);  readonly generation
 current_generation=$(get_observed_generation)
 
-echo "Expected generation for deployment ${deployment}: ${generation}"
+echo "Expected generation for ${type} ${deployment}: ${generation}"
 while [[ ${current_generation} -lt ${generation} ]]; do
   sleep .5
   echo "Currently observed generation: ${current_generation}"
@@ -109,14 +111,14 @@ echo "Specified replicas: ${specified_replicas}"
 
 current_replicas=$(get_replicas)
 updated_replicas=$(get_updated_replicas)
-available_replicas=$(get_available_replicas)
+ready_replicas=$(get_ready_replicas)
 
-while [[ ${updated_replicas} -lt ${specified_replicas} || ${current_replicas} -gt ${updated_replicas} || ${available_replicas} -lt ${updated_replicas} ]]; do
-  sleep .5
-  echo "current/updated/available replicas: ${current_replicas}/${updated_replicas}/${available_replicas}, waiting"
+while [[ ${updated_replicas} -lt ${specified_replicas} || ${current_replicas} -gt ${updated_replicas} || ${ready_replicas} -lt ${updated_replicas} ]]; do
+  sleep 5
+  echo "${deployment} current/updated/ready replicas: ${current_replicas}/${updated_replicas}/${ready_replicas}, waiting"
   current_replicas=$(get_replicas)
   updated_replicas=$(get_updated_replicas)
-  available_replicas=$(get_available_replicas)
+  ready_replicas=$(get_ready_replicas)
 done
 
-echo "Deployment ${deployment} successful. All ${available_replicas} replicas are ready."
+echo "Deployment/update of ${type} ${deployment} successful. All ${ready_replicas} replicas are ready."
