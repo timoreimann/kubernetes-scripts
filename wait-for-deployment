@@ -58,7 +58,7 @@ get_deployment_jsonpath() {
 display_usage_and_exit() {
   echo "Usage: $(basename "$0") [-n <namespace>] [-t <timeout>] [deployment|statefulset]/<resource-name>" >&2
   echo "Arguments:" >&2
-  echo "[deployment/statefulset]/resource-name REQUIRED: The type and name of the resource the script should wait on. Currently the supported types are deployment and statefulset are supported." >&2
+  echo "[deployment/statefulset]/resource-name REQUIRED: The type and name of the resource the script should wait on. Currently deployment and statefulset are supported." >&2
   echo "-n OPTIONAL: The namespace the deployment exists in, defaults is the 'default' namespace" >&2
   echo "-t OPTIONAL: How long to wait for the deployment to be available, defaults to ${DEFAULT_TIMEOUT} seconds, must be greater than 0" >&2
   exit 1
@@ -90,8 +90,9 @@ fi
 if ! [[ $deployment =~ .*/.* ]]; then
   deployment="deployment/$deployment"
 fi
+readonly deployment="$deployment"
 
-if [[ ! $deployment =~ deployment/.* ]] && [[ ! $deployment =~ statefulset/.* ]]; then
+if [[ ! $deployment =~ deployment\/.* ]] && [[ ! $deployment =~ statefulset\/.* ]]; then
   display_usage_and_exit
 fi
 
